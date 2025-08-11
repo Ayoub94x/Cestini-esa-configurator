@@ -18,23 +18,30 @@ import jsPDF from "jspdf"
 import autoTable from "jspdf-autotable"
 // import html2canvas from "html2canvas" // Removed unused import
 import { options } from "@/lib/data"
+import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
+import { Label } from "@/components/ui/label"
 
 const LOGO_URL = "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Logo_ESA-SH0r2i3VZYnYmHs6wymFizOyag967i.png"
 
-// Helper function to load images from URL and get their Data URL
-const getImageDataUrl = (url: string): Promise<string> => {
+type ImageDataResult = { dataUrl: string; width: number; height: number }
+
+// Helper function to load images from URL and get their Data URL and natural size
+const getImageDataUrl = (url: string): Promise<ImageDataResult> => {
   return new Promise((resolve, reject) => {
     const img = new Image()
-    img.crossOrigin = "anonymous" // Important for loading external images into canvas
+    img.crossOrigin = "anonymous"
 
     img.onload = () => {
+      const naturalWidth = img.width
+      const naturalHeight = img.height
       const canvas = document.createElement("canvas")
-      canvas.width = img.width
-      canvas.height = img.height
+      canvas.width = naturalWidth
+      canvas.height = naturalHeight
       const ctx = canvas.getContext("2d")
       if (ctx) {
         ctx.drawImage(img, 0, 0)
-        resolve(canvas.toDataURL("image/png"))
+        resolve({ dataUrl: canvas.toDataURL("image/png"), width: naturalWidth, height: naturalHeight })
       } else {
         reject(new Error("Could not get canvas context"))
       }
@@ -83,15 +90,19 @@ const drawIconInPdf = (doc: jsPDF, option: { code: string }, x: number, y: numbe
 
     case "v0":
       // FlameOff icon (flame with slash)
-      // Draw flame shape
+      // Draw flame shape (approximate polygon via lines)
       const flamePoints = [
         [centerX, centerY - 6 * scale],
         [centerX - 3 * scale, centerY - 2 * scale],
         [centerX - 2 * scale, centerY + 2 * scale],
         [centerX + 2 * scale, centerY + 2 * scale],
-        [centerX + 3 * scale, centerY - 2 * scale]
+        [centerX + 3 * scale, centerY - 2 * scale],
       ]
-      doc.polygon(flamePoints, "S")
+      for (let i = 0; i < flamePoints.length; i++) {
+        const [x1, y1] = flamePoints[i]
+        const [x2, y2] = flamePoints[(i + 1) % flamePoints.length]
+        doc.line(x1, y1, x2, y2)
+      }
       
       // Draw slash line
       doc.setLineWidth(2 * scale)
@@ -249,6 +260,13 @@ export function QuoteDialog() {
   const { selectedBin, selectedOptions, isColorOptionActive, quantity, color } = useConfigStore()
   const { priceBreakdown } = usePriceCalculation()
 
+  // Optional client data and notes used in the PDF layout (keeps current flow intact)
+  const [clientName, setClientName] = useState("")
+  const [clientAddress, setClientAddress] = useState("")
+  const [clientEmail, setClientEmail] = useState("")
+  const [clientPhone, setClientPhone] = useState("")
+  const [notes, setNotes] = useState("")
+
   const handleGeneratePdf = async () => {
     if (!selectedBin || !priceBreakdown) return
     setIsGenerating(true)
@@ -257,24 +275,24 @@ export function QuoteDialog() {
       const doc = new jsPDF("p", "pt", "a4")
       const pageWidth = doc.internal.pageSize.width
       const pageHeight = doc.internal.pageSize.height
-      const margin = 50
+      const margin = 48
       const contentWidth = pageWidth - (margin * 2)
       
-      // Modern color palette - properly typed for jsPDF
+      // Minimal, sober palette
       const colors = {
-        primary: [25, 39, 52] as [number, number, number],      // Dark blue-gray
-        secondary: [71, 85, 105] as [number, number, number],   // Medium gray
-        accent: [59, 130, 246] as [number, number, number],     // Blue accent
-        success: [16, 185, 129] as [number, number, number],    // Green
-        light: [248, 250, 252] as [number, number, number],     // Very light gray
-        border: [226, 232, 240] as [number, number, number],    // Light border
-        text: [15, 23, 42] as [number, number, number],         // Dark text
-        textLight: [100, 116, 139] as [number, number, number]  // Light text
+        primary: [17, 24, 39] as [number, number, number],      // Near-black text
+        secondary: [55, 65, 81] as [number, number, number],    // Dark gray
+        accent: [59, 130, 246] as [number, number, number],     // Subtle accent (brand)
+        success: [16, 185, 129] as [number, number, number],    // Green for price badges
+        light: [249, 250, 251] as [number, number, number],     // Light gray background
+        border: [229, 231, 235] as [number, number, number],    // Divider/border
+        text: [17, 24, 39] as [number, number, number],         // Body text
+        textLight: [107, 114, 128] as [number, number, number]  // Muted text
       }
       
       // Load logo and bin image
-      const logoImgData = await getImageDataUrl(LOGO_URL)
-      let binImageData: string | null = null
+      const logoImg = await getImageDataUrl(LOGO_URL)
+      let binImageData: ImageDataResult | null = null
       
       try {
         binImageData = await getImageDataUrl(selectedBin.baseImage)
@@ -282,156 +300,147 @@ export function QuoteDialog() {
         console.warn("Could not load bin image:", error)
       }
 
-      // === HEADER SECTION ===
+      // === HEADER (minimal) ===
       let currentY = margin
-      
-      // Header background with subtle gradient effect
-      doc.setFillColor(...colors.light)
-      doc.rect(0, 0, pageWidth, 140, "F")
-      
-      // Thin accent line at top
-      doc.setFillColor(...colors.accent)
-      doc.rect(0, 0, pageWidth, 4, "F")
-      
-      // Logo with better positioning
-      doc.addImage(logoImgData, "PNG", margin, currentY, 140, 47)
-      
-      // Company info - modern typography
+
+      // Logo (preserve aspect ratio, fit within max 140x40)
+      const logoMaxWidth = 140
+      const logoTargetHeight = 40
+      let logoDrawWidth = (logoImg.width / logoImg.height) * logoTargetHeight
+      let logoDrawHeight = logoTargetHeight
+      if (logoDrawWidth > logoMaxWidth) {
+        const s = logoMaxWidth / logoDrawWidth
+        logoDrawWidth = logoMaxWidth
+        logoDrawHeight = logoDrawHeight * s
+      }
+      doc.addImage(logoImg.dataUrl, "PNG", margin, currentY, logoDrawWidth, logoDrawHeight)
+
+      // Company info
       doc.setTextColor(...colors.text)
-      doc.setFontSize(11)
+      doc.setFontSize(10)
       doc.setFont("helvetica", "bold")
-      doc.text("Ecologia Soluzione Ambiente S.p.A.", pageWidth - margin, currentY + 10, { align: "right" })
-      
+      doc.text("Ecologia Soluzione Ambiente S.p.A.", pageWidth - margin, currentY + 8, { align: "right" })
       doc.setFontSize(9)
       doc.setFont("helvetica", "normal")
       doc.setTextColor(...colors.textLight)
-      doc.text("Via Vittorio Veneto, 2-2/A", pageWidth - margin, currentY + 25, { align: "right" })
-      doc.text("42021 Bibbiano (RE)", pageWidth - margin, currentY + 38, { align: "right" })
-      doc.text("P.IVA IT01494430356", pageWidth - margin, currentY + 51, { align: "right" })
-      
-      currentY = 160
-      
-      // === DOCUMENT TITLE SECTION ===
-      // Title with modern styling
-      doc.setTextColor(...colors.primary)
-      doc.setFontSize(28)
-      doc.setFont("helvetica", "bold")
-      doc.text("PREVENTIVO", margin, currentY)
-      
-      // Subtitle line
-      doc.setFillColor(...colors.accent)
-      doc.rect(margin, currentY + 10, 120, 2, "F")
-      
-      // Document info in organized layout
-      currentY += 40
-      const docInfoY = currentY
-      
-      // Left side - Date
-      doc.setTextColor(...colors.textLight)
-      doc.setFontSize(10)
-      doc.setFont("helvetica", "normal")
-      doc.text("DATA EMISSIONE", margin, docInfoY)
-      doc.setTextColor(...colors.text)
-      doc.setFontSize(12)
-      doc.setFont("helvetica", "bold")
-      doc.text(new Date().toLocaleDateString("it-IT"), margin, docInfoY + 15)
-      
-      // Right side - Quote number
-      const quoteNumber = `ESA-${Date.now().toString().slice(-6)}`
-      doc.setTextColor(...colors.textLight)
-      doc.setFontSize(10)
-      doc.setFont("helvetica", "normal")
-      doc.text("PREVENTIVO N°", pageWidth - margin, docInfoY, { align: "right" })
-      doc.setTextColor(...colors.text)
-      doc.setFontSize(12)
-      doc.setFont("helvetica", "bold")
-      doc.text(quoteNumber, pageWidth - margin, docInfoY + 15, { align: "right" })
-      
-      currentY += 50
+      doc.text("Via Vittorio Veneto, 2-2/A", pageWidth - margin, currentY + 22, { align: "right" })
+      doc.text("42021 Bibbiano (RE)", pageWidth - margin, currentY + 34, { align: "right" })
+      doc.text("P.IVA IT01494430356", pageWidth - margin, currentY + 46, { align: "right" })
 
-      // === PRODUCT SECTION ===
-      // Section title
+      currentY += 66
+
+      // Title row
       doc.setTextColor(...colors.primary)
-      doc.setFontSize(16)
+      doc.setFontSize(22)
       doc.setFont("helvetica", "bold")
-      doc.text("DETTAGLI PRODOTTO", margin, currentY)
-      
-      // Section separator line
-      doc.setFillColor(...colors.border)
-      doc.rect(margin, currentY + 8, contentWidth, 1, "F")
-      
-      currentY += 30
-      
-      // Modern product card with clean design
-      const cardHeight = 140
-      const imageWidth = 120
-      const imageHeight = 110
-      
-      // Card background with subtle shadow
-      doc.setFillColor(255, 255, 255)
-      doc.roundedRect(margin, currentY, contentWidth, cardHeight, 8, 8, "F")
+      doc.text("Preventivo", margin, currentY)
+
+      const quoteNumber = `ESA-${Date.now().toString().slice(-6)}`
+      doc.setFontSize(10)
+      doc.setFont("helvetica", "normal")
+      doc.setTextColor(...colors.textLight)
+      doc.text(`Data: ${new Date().toLocaleDateString("it-IT")}`, pageWidth - margin, currentY - 6, { align: "right" })
+      doc.text(`N° ${quoteNumber}`, pageWidth - margin, currentY + 8, { align: "right" })
+
+      // Divider
+      currentY += 16
       doc.setDrawColor(...colors.border)
-      doc.setLineWidth(1)
-      doc.roundedRect(margin, currentY, contentWidth, cardHeight, 8, 8, "S")
-      
-      // Product image section
-      const imageX = margin + 20
-      const imageY = currentY + 15
-      
-      // Image background
-      doc.setFillColor(...colors.light)
-      doc.roundedRect(imageX, imageY, imageWidth, imageHeight, 6, 6, "F")
-      
-      if (binImageData) {
-        doc.addImage(binImageData, "PNG", imageX + 10, imageY + 5, imageWidth - 20, imageHeight - 10)
+      doc.setLineWidth(0.8)
+      doc.line(margin, currentY, pageWidth - margin, currentY)
+      currentY += 20
+
+      // === CLIENT SECTION ===
+      doc.setTextColor(...colors.secondary)
+      doc.setFontSize(11)
+      doc.setFont("helvetica", "bold")
+      doc.text("Dati Cliente", margin, currentY)
+      doc.setDrawColor(...colors.border)
+      doc.setLineWidth(0.6)
+      doc.line(margin, currentY + 6, pageWidth - margin, currentY + 6)
+      currentY += 18
+
+      const clientLines: string[] = []
+      if (clientName) clientLines.push(clientName)
+      if (clientAddress) clientLines.push(clientAddress)
+      const contactParts = [clientEmail, clientPhone].filter(Boolean)
+      if (contactParts.length) clientLines.push(contactParts.join(" • "))
+      doc.setTextColor(...colors.text)
+      doc.setFontSize(10)
+      doc.setFont("helvetica", "normal")
+      if (clientLines.length > 0) {
+        clientLines.forEach((line, idx) => {
+          doc.text(line, margin, currentY + idx * 14)
+        })
       } else {
-        // Modern placeholder
-        doc.setFillColor(...colors.border)
-        doc.roundedRect(imageX + 20, imageY + 20, imageWidth - 40, imageHeight - 40, 4, 4, "F")
-        doc.setFontSize(10)
         doc.setTextColor(...colors.textLight)
-        doc.text("Immagine", imageX + imageWidth/2, imageY + imageHeight/2 - 5, { align: "center" })
-        doc.text("non disponibile", imageX + imageWidth/2, imageY + imageHeight/2 + 8, { align: "center" })
+        doc.text("— Nessun dato cliente fornito —", margin, currentY)
       }
+      currentY += clientLines.length > 0 ? clientLines.length * 14 + 18 : 32
+
+      // === PRODUCT SECTION (minimal) ===
+      doc.setTextColor(...colors.secondary)
+      doc.setFontSize(11)
+      doc.setFont("helvetica", "bold")
+      doc.text("Dettagli Prodotto", margin, currentY)
+      doc.setDrawColor(...colors.border)
+      doc.setLineWidth(0.6)
+      doc.line(margin, currentY + 6, pageWidth - margin, currentY + 6)
+      currentY += 22
       
-      // Product details with modern layout
-      const detailsX = imageX + imageWidth + 30
-      const detailsY = currentY + 25
-      
-      // Product name - prominent
+      // Layout: small image on left, simple text on right
+      const imageWidth = 110
+      const imageHeight = 95
+      const imageX = margin
+      const imageY = currentY
+
+      // draw bounding box border for clarity
+      doc.setDrawColor(...colors.border)
+      doc.setLineWidth(0.6)
+      doc.rect(imageX, imageY, imageWidth, imageHeight)
+
+      if (binImageData) {
+        // keep aspect ratio: fit within imageWidth x imageHeight
+        const scale = Math.min(imageWidth / binImageData.width, imageHeight / binImageData.height)
+        const drawW = binImageData.width * scale
+        const drawH = binImageData.height * scale
+        const drawX = imageX + (imageWidth - drawW) / 2
+        const drawY = imageY + (imageHeight - drawH) / 2
+        doc.addImage(binImageData.dataUrl, "PNG", drawX, drawY, drawW, drawH)
+      } else {
+        doc.setFontSize(9)
+        doc.setTextColor(...colors.textLight)
+        doc.text("Immagine non disponibile", imageX + imageWidth / 2, imageY + imageHeight / 2, { align: "center" })
+      }
+
+      const detailsX = imageX + imageWidth + 16
+      const detailsY = imageY + 2
       doc.setTextColor(...colors.primary)
-      doc.setFontSize(18)
+      doc.setFontSize(14)
       doc.setFont("helvetica", "bold")
       doc.text(`${selectedBin.name} ${selectedBin.size}L`, detailsX, detailsY)
-      
-      // Product specifications in organized grid
+
       const specs = [
         { label: "Modello", value: selectedBin.name },
-        { label: "Capacità", value: `${selectedBin.size} Litri` },
+        { label: "Capacità", value: `${selectedBin.size} L` },
         { label: "Quantità", value: `${quantity} pz` },
-        { label: "Produzione", value: `${selectedBin.prodDays} giorni` }
+        { label: "Produzione", value: `${selectedBin.prodDays} giorni` },
       ]
-      
-      let specY = detailsY + 25
-      specs.forEach((spec, _index) => {
-        // Label
-        doc.setTextColor(...colors.textLight)
-        doc.setFontSize(9)
-        doc.setFont("helvetica", "bold")
-        doc.text(spec.label.toUpperCase(), detailsX, specY)
-        
-        // Value
-        doc.setTextColor(...colors.text)
-        doc.setFontSize(11)
-        doc.setFont("helvetica", "normal")
-        doc.text(spec.value, detailsX, specY + 12)
-        
-        specY += 22
-      })
-      
-      currentY += cardHeight + 30
 
-      // === OPTIONAL SECTION ===
+      let specY = detailsY + 18
+      doc.setFontSize(10)
+      doc.setFont("helvetica", "normal")
+      doc.setTextColor(...colors.text)
+      specs.forEach((spec) => {
+        doc.setTextColor(...colors.textLight)
+        doc.text(`${spec.label}:`, detailsX, specY)
+        doc.setTextColor(...colors.text)
+        doc.text(spec.value, detailsX + 60, specY)
+        specY += 14
+      })
+
+      currentY = Math.max(currentY + imageHeight, specY) + 18
+
+      // === OPTIONAL SECTION (minimal list) ===
       const selectedOptionsList = []
       
       if (isColorOptionActive) {
@@ -451,107 +460,36 @@ export function QuoteDialog() {
 
       if (selectedOptionsList.length > 0) {
         // Section title
-        doc.setTextColor(...colors.primary)
-        doc.setFontSize(16)
+        doc.setTextColor(...colors.secondary)
+        doc.setFontSize(11)
         doc.setFont("helvetica", "bold")
-        doc.text("OPTIONAL SELEZIONATI", margin, currentY)
-        
-        // Section separator line
-        doc.setFillColor(...colors.border)
-        doc.rect(margin, currentY + 8, contentWidth, 1, "F")
-        
-        currentY += 30
-        
-        // Modern options layout - single column for better readability
-        const optionHeight = 60
-        const optionSpacing = 15
-        
-        selectedOptionsList.forEach((option, index) => {
-          const optionY = currentY + index * (optionHeight + optionSpacing)
-          
-          // Option card with modern styling
-          doc.setFillColor(255, 255, 255)
-          doc.roundedRect(margin, optionY, contentWidth, optionHeight, 6, 6, "F")
-          doc.setDrawColor(...colors.border)
-          doc.setLineWidth(1)
-          doc.roundedRect(margin, optionY, contentWidth, optionHeight, 6, 6, "S")
-          
-          // Icon section
-          const iconX = margin + 20
-          const iconY = optionY + 15
-          const iconSize = 30
-          
-          // Icon background
-          doc.setFillColor(...colors.light)
-          doc.circle(iconX + iconSize/2, iconY + iconSize/2, iconSize/2, "F")
-          doc.setDrawColor(...colors.border)
-          doc.setLineWidth(1)
-          doc.circle(iconX + iconSize/2, iconY + iconSize/2, iconSize/2, "S")
-          
-          // Draw icon
-          try {
-            let iconColor = "#3b82f6"
-            if (option.code === 'color') {
-              iconColor = color || "#ff6b35"
-            }
-            drawIconInPdf(doc, option, iconX + 1, iconY + 1, iconSize - 2, iconColor)
-          } catch (_error) {
-            // Fallback icon
-            doc.setFillColor(...colors.accent)
-            doc.circle(iconX + iconSize/2, iconY + iconSize/2, 8, "F")
-            doc.setFillColor(255, 255, 255)
-            doc.setFont("helvetica", "bold")
-            doc.setFontSize(10)
-            doc.text("?", iconX + iconSize/2 - 3, iconY + iconSize/2 + 3)
-          }
-          
-          // Option details
-          const textX = iconX + iconSize + 20
-          const textY = optionY + 20
-          
-          // Option name
-          doc.setTextColor(...colors.text)
-          doc.setFontSize(12)
-          doc.setFont("helvetica", "bold")
-          doc.text(option.label, textX, textY)
-          
-          // Option label styling
-          doc.setTextColor(...colors.text)
-          doc.setFontSize(10)
-          doc.setFont("helvetica", "bold")
-          doc.text(option.label, textX, textY)
-          
-          // Price display
-          if (option.price) {
-            const priceText = option.percentage ? `+${option.price}%` : `+€${option.price}`
-            const priceX = margin + contentWidth - 80
-            
-            // Price badge
-            doc.setFillColor(...colors.success)
-            doc.roundedRect(priceX, optionY + 15, 70, 20, 10, 10, "F")
-            
-            doc.setTextColor(255, 255, 255)
-            doc.setFontSize(10)
-            doc.setFont("helvetica", "bold")
-            doc.text(priceText, priceX + 35, optionY + 27, { align: "center" })
-          }
+        doc.text("Optional selezionati", margin, currentY)
+        doc.setDrawColor(...colors.border)
+        doc.setLineWidth(0.6)
+        doc.line(margin, currentY + 6, pageWidth - margin, currentY + 6)
+        currentY += 18
+
+        // Simple bullet list
+        doc.setTextColor(...colors.text)
+        doc.setFontSize(10)
+        doc.setFont("helvetica", "normal")
+        selectedOptionsList.forEach((option, idx) => {
+          const lineY = currentY + idx * 14
+          const priceText = option.price ? (option.percentage ? `(+${option.price}%)` : `(+€${option.price})`) : ""
+          doc.text(`• ${option.label} ${priceText}`, margin, lineY)
         })
-        
-        currentY += selectedOptionsList.length * (optionHeight + optionSpacing) + 20
+        currentY += selectedOptionsList.length * 14 + 12
       }
 
       // === PRICING SECTION ===
-      // Section title
-      doc.setTextColor(...colors.primary)
-      doc.setFontSize(16)
+      doc.setTextColor(...colors.secondary)
+      doc.setFontSize(11)
       doc.setFont("helvetica", "bold")
-      doc.text("RIEPILOGO PREZZI", margin, currentY)
-      
-      // Section separator line
-      doc.setFillColor(...colors.border)
-      doc.rect(margin, currentY + 8, contentWidth, 1, "F")
-      
-      currentY += 30
+      doc.text("Riepilogo prezzi", margin, currentY)
+      doc.setDrawColor(...colors.border)
+      doc.setLineWidth(0.6)
+      doc.line(margin, currentY + 6, pageWidth - margin, currentY + 6)
+      currentY += 16
       
       // Modern pricing table
       const tableData = priceBreakdown.items.map((item) => {
@@ -565,121 +503,75 @@ export function QuoteDialog() {
 
       autoTable(doc, {
         startY: currentY,
-        head: [["Descrizione", "Quantità", "Prezzo Unitario", "Totale"]],
+        head: [["Descrizione", "Quantità", "Prezzo unitario", "Totale"]],
         body: tableData,
         theme: "plain",
-        headStyles: { 
-          fillColor: colors.primary,
-          textColor: [255, 255, 255],
-          fontSize: 11,
+        headStyles: {
+          fillColor: [245, 247, 250],
+          textColor: colors.text,
+          fontSize: 10,
           fontStyle: "bold",
-          halign: "center",
-          cellPadding: { top: 12, bottom: 12, left: 8, right: 8 }
+          halign: "left",
+          lineColor: colors.border,
+          lineWidth: 0.8,
+          cellPadding: { top: 8, bottom: 8, left: 8, right: 8 },
         },
         bodyStyles: {
           fontSize: 10,
-          cellPadding: { top: 10, bottom: 10, left: 8, right: 8 },
+          cellPadding: { top: 8, bottom: 8, left: 8, right: 8 },
           textColor: colors.text,
           lineColor: colors.border,
-          lineWidth: 0.5
+          lineWidth: 0.5,
         },
         columnStyles: {
-          0: { cellWidth: 220, halign: "left", fontStyle: "normal" },
-          1: { cellWidth: 80, halign: "center", fontStyle: "normal" },
+          0: { cellWidth: 230, halign: "left", fontStyle: "normal" },
+          1: { cellWidth: 70, halign: "center", fontStyle: "normal" },
           2: { cellWidth: 110, halign: "right", fontStyle: "normal" },
-          3: { cellWidth: 110, halign: "right", fontStyle: "bold" }
+          3: { cellWidth: 110, halign: "right", fontStyle: "bold" },
         },
-        alternateRowStyles: {
-          fillColor: colors.light
-        },
+        alternateRowStyles: { fillColor: [255, 255, 255] },
         margin: { left: margin, right: margin },
-        styles: {
-          overflow: 'linebreak',
-          cellWidth: 'wrap'
-        },
-        didDrawPage: (_data) => {
-          // Modern footer with better styling
-          const footerY = pageHeight - 40
-          
-          // Footer background
-          doc.setFillColor(...colors.light)
-          doc.rect(0, footerY - 10, pageWidth, 50, "F")
-          
-          // Footer text
-          doc.setTextColor(...colors.textLight)
-          doc.setFontSize(9)
-          doc.setFont("helvetica", "normal")
-          doc.text(
-            "Preventivo valido 30 giorni • Prezzi netti, IVA esclusa • Condizioni di pagamento secondo accordi",
-            pageWidth / 2,
-            footerY + 5,
-            { align: "center" }
-          )
-          
-          // Company footer info
-          doc.setFontSize(8)
-          doc.text(
-            "ESA S.p.A. • www.esaspa.it • info@esaspa.it",
-            pageWidth / 2,
-            footerY + 18,
-            { align: "center" }
-          )
-        },
+        styles: { overflow: "linebreak", cellWidth: "wrap" },
       })
 
-      // === TOTAL SECTION ===
-      const finalY = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 30
-      
-      // Total card with modern styling - increased height to avoid overlapping
-      const totalCardHeight = 60
-      const totalCardY = finalY
-      
-      // Card shadow effect
-      doc.setFillColor(0, 0, 0, 0.1)
-      doc.rect(margin + 2, totalCardY + 2, contentWidth, totalCardHeight, "F")
-      
-      // Main card background with gradient effect
-      doc.setFillColor(...colors.primary)
-      doc.rect(margin, totalCardY, contentWidth, totalCardHeight, "F")
-      
-      // Accent line at the top
-      doc.setFillColor(...colors.accent)
-      doc.rect(margin, totalCardY, contentWidth, 3, "F")
-      
-      // Total label - positioned higher
-      doc.setTextColor(255, 255, 255)
-      doc.setFontSize(12)
-      doc.setFont("helvetica", "normal")
-      doc.text(
-        "TOTALE PREVENTIVO",
-        margin + 20,
-        totalCardY + 18
-      )
-      
-      // Total amount - repositioned with more space
-      doc.setFontSize(22)
-      doc.setFont("helvetica", "bold")
-      const totalText = priceBreakdown.total.toLocaleString("it-IT", { style: "currency", currency: "EUR" })
-      doc.text(
-        totalText,
-        pageWidth - margin - 20,
-        totalCardY + 35,
-        { align: "right" }
-      )
-      
-      // IVA notice - positioned lower to avoid overlap
-      doc.setFontSize(10)
-      doc.setFont("helvetica", "normal")
-      doc.setTextColor(255, 255, 255)
-      doc.text(
-        "(IVA esclusa)",
-        pageWidth - margin - 20,
-        totalCardY + 50,
-        { align: "right" }
-      )
+      // === TOTAL + NOTES/CONDITIONS SECTION ===
+      const afterTableY = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 18
 
-      // Reset text color
-      doc.setTextColor(0, 0, 0)
+      // Total (emphasized)
+      const totalText = priceBreakdown.total.toLocaleString("it-IT", { style: "currency", currency: "EUR" })
+      doc.setDrawColor(...colors.border)
+      doc.setLineWidth(0.8)
+      doc.line(margin, afterTableY, pageWidth - margin, afterTableY)
+      doc.setFont("helvetica", "bold")
+      doc.setFontSize(12)
+      doc.setTextColor(...colors.text)
+      doc.text("Totale preventivo (IVA esclusa)", margin, afterTableY + 20)
+      doc.setFontSize(20)
+      doc.text(totalText, pageWidth - margin, afterTableY + 22, { align: "right" })
+
+      // Notes & Conditions
+      let notesY = afterTableY + 42
+      doc.setTextColor(...colors.secondary)
+      doc.setFontSize(11)
+      doc.setFont("helvetica", "bold")
+      doc.text("Condizioni e note", margin, notesY)
+      doc.setDrawColor(...colors.border)
+      doc.setLineWidth(0.6)
+      doc.line(margin, notesY + 6, pageWidth - margin, notesY + 6)
+      notesY += 18
+
+      doc.setTextColor(...colors.text)
+      doc.setFontSize(9)
+      doc.setFont("helvetica", "normal")
+      const defaultConditions = [
+        "Validità del preventivo: 30 giorni",
+        "Prezzi netti, IVA esclusa",
+        "Condizioni di pagamento secondo accordi",
+      ]
+      const allNotes = notes ? [notes, ...defaultConditions] : defaultConditions
+      allNotes.forEach((line, idx) => {
+        doc.text(`• ${line}`, margin, notesY + idx * 14)
+      })
 
       const date = new Date().toISOString().split("T")[0]
       doc.save(`preventivo_esa_${date}.pdf`)
@@ -699,13 +591,35 @@ export function QuoteDialog() {
           Scarica Preventivo PDF
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-[560px]">
         <DialogHeader>
           <DialogTitle>Conferma Download Preventivo</DialogTitle>
           <DialogDescription>
             Stai per generare un PDF con il riepilogo della configurazione attuale. Vuoi procedere?
           </DialogDescription>
         </DialogHeader>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-2">
+          <div className="space-y-2">
+            <Label htmlFor="clientName">Nome/Ragione sociale</Label>
+            <Input id="clientName" value={clientName} onChange={(e) => setClientName(e.target.value)} placeholder="Es. Rossi S.r.l." />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="clientEmail">Email</Label>
+            <Input id="clientEmail" type="email" value={clientEmail} onChange={(e) => setClientEmail(e.target.value)} placeholder="nome@azienda.it" />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="clientPhone">Telefono</Label>
+            <Input id="clientPhone" value={clientPhone} onChange={(e) => setClientPhone(e.target.value)} placeholder="+39 ..." />
+          </div>
+          <div className="space-y-2 md:col-span-2">
+            <Label htmlFor="clientAddress">Indirizzo</Label>
+            <Input id="clientAddress" value={clientAddress} onChange={(e) => setClientAddress(e.target.value)} placeholder="Via, CAP, Città, Provincia" />
+          </div>
+          <div className="space-y-2 md:col-span-2">
+            <Label htmlFor="notes">Note/Condizioni</Label>
+            <Textarea id="notes" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Eventuali condizioni, scadenze o note importanti da evidenziare nel PDF" />
+          </div>
+        </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => setIsOpen(false)}>
             Annulla
