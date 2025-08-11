@@ -55,6 +55,15 @@ const getImageDataUrl = (url: string): Promise<ImageDataResult> => {
   })
 }
 
+// Convert HEX color (e.g. #RRGGBB) to RGB tuple
+const hexToRgb = (hex: string): [number, number, number] => {
+  const cleaned = hex.replace('#', '')
+  const r = parseInt(cleaned.substring(0, 2), 16)
+  const g = parseInt(cleaned.substring(2, 4), 16)
+  const b = parseInt(cleaned.substring(4, 6), 16)
+  return [r, g, b]
+}
+
 // Helper function to draw icons directly in PDF (replicating Lucide React icons)
 const drawIconInPdf = (doc: jsPDF, option: { code: string }, x: number, y: number, size: number = 16, color: string = "#374151") => {
   const centerX = x + size / 2
@@ -426,6 +435,10 @@ export function QuoteDialog() {
         { label: "Produzione", value: `${selectedBin.prodDays} giorni` },
       ]
 
+      if (isColorOptionActive && color) {
+        specs.push({ label: "Colore", value: color })
+      }
+
       let specY = detailsY + 18
       doc.setFontSize(10)
       doc.setFont("helvetica", "normal")
@@ -434,7 +447,20 @@ export function QuoteDialog() {
         doc.setTextColor(...colors.textLight)
         doc.text(`${spec.label}:`, detailsX, specY)
         doc.setTextColor(...colors.text)
-        doc.text(spec.value, detailsX + 60, specY)
+        if (spec.label === 'Colore') {
+          // Draw color swatch and hex value
+          const [r, g, b] = hexToRgb(spec.value)
+          const swatchX = detailsX + 60
+          const swatchY = specY - 8
+          const swatchSize = 10
+          doc.setFillColor(r, g, b)
+          doc.setDrawColor(...colors.border)
+          doc.rect(swatchX, swatchY, swatchSize, swatchSize, 'FD')
+          doc.setTextColor(...colors.text)
+          doc.text(spec.value.toUpperCase(), swatchX + swatchSize + 6, specY)
+        } else {
+          doc.text(spec.value, detailsX + 60, specY)
+        }
         specY += 14
       })
 
@@ -476,7 +502,11 @@ export function QuoteDialog() {
         selectedOptionsList.forEach((option, idx) => {
           const lineY = currentY + idx * 14
           const priceText = option.price ? (option.percentage ? `(+${option.price}%)` : `(+€${option.price})`) : ""
-          doc.text(`• ${option.label} ${priceText}`, margin, lineY)
+          if (option.code === 'color') {
+            doc.text(`• Colore: ${color} ${priceText}`, margin, lineY)
+          } else {
+            doc.text(`• ${option.label} ${priceText}`, margin, lineY)
+          }
         })
         currentY += selectedOptionsList.length * 14 + 12
       }
