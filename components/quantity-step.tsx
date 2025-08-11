@@ -9,7 +9,7 @@ import { AlertCircle, ArrowLeft, Calendar } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { QuoteDialog } from "./quote-dialog"
-import Image from "next/image"
+import { Image } from "./image"
 
 export function QuantityStep() {
   const { selectedBin, quantity, setQuantity, setStep } = useConfigStore()
@@ -38,14 +38,7 @@ export function QuantityStep() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex items-center gap-4">
-              <Image
-                src={selectedBin.baseImage || "/placeholder.svg"}
-                alt={`${selectedBin.name} ${selectedBin.size}L`}
-                width={80}
-                height={80}
-                className="rounded-md bg-gray-100 p-1 object-contain"
-                unoptimized
-              />
+              <Image src={selectedBin.baseImage || "/placeholder.svg"} alt={`${selectedBin.name} ${selectedBin.size}L`} width={80} height={80} className="rounded-md bg-gray-100 p-1 object-contain" />
               <div>
                 <p className="font-bold text-lg">
                   Cestino {selectedBin.name} {selectedBin.size}L

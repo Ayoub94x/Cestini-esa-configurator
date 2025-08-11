@@ -16,7 +16,7 @@ import { usePriceCalculation } from "@/hooks/use-price-calculation"
 import { Download, Loader2 } from "lucide-react"
 import jsPDF from "jspdf"
 import autoTable from "jspdf-autotable"
-import html2canvas from "html2canvas"
+// import html2canvas from "html2canvas" // Removed unused import
 import { options } from "@/lib/data"
 
 const LOGO_URL = "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Logo_ESA-SH0r2i3VZYnYmHs6wymFizOyag967i.png"
@@ -49,7 +49,7 @@ const getImageDataUrl = (url: string): Promise<string> => {
 }
 
 // Helper function to draw icons directly in PDF (replicating Lucide React icons)
-const drawIconInPdf = (doc: any, option: any, x: number, y: number, size: number = 16, color: string = "#374151") => {
+const drawIconInPdf = (doc: jsPDF, option: { code: string }, x: number, y: number, size: number = 16, color: string = "#374151") => {
   const centerX = x + size / 2
   const centerY = y + size / 2
   const scale = size / 24 // Lucide icons are 24x24 by default
@@ -413,7 +413,7 @@ export function QuoteDialog() {
       ]
       
       let specY = detailsY + 25
-      specs.forEach((spec, index) => {
+      specs.forEach((spec, _index) => {
         // Label
         doc.setTextColor(...colors.textLight)
         doc.setFontSize(9)
@@ -495,7 +495,7 @@ export function QuoteDialog() {
               iconColor = color || "#ff6b35"
             }
             drawIconInPdf(doc, option, iconX + 1, iconY + 1, iconSize - 2, iconColor)
-          } catch (error) {
+          } catch (_error) {
             // Fallback icon
             doc.setFillColor(...colors.accent)
             doc.circle(iconX + iconSize/2, iconY + iconSize/2, 8, "F")
@@ -597,7 +597,7 @@ export function QuoteDialog() {
           overflow: 'linebreak',
           cellWidth: 'wrap'
         },
-        didDrawPage: (data) => {
+        didDrawPage: (_data) => {
           // Modern footer with better styling
           const footerY = pageHeight - 40
           
@@ -628,7 +628,7 @@ export function QuoteDialog() {
       })
 
       // === TOTAL SECTION ===
-      const finalY = (doc as any).lastAutoTable.finalY + 30
+      const finalY = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 30
       
       // Total card with modern styling - increased height to avoid overlapping
       const totalCardHeight = 60

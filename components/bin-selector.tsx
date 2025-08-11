@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from "@/components/ui/button"
 import { useConfigStore } from "@/hooks/use-config-store"
 import { bins, binModels } from "@/lib/data"
-import Image from "next/image"
+import { Image } from "./image"
 import { ArrowLeft } from "lucide-react"
 
 export function BinSelector() {
@@ -43,14 +43,7 @@ export function BinSelector() {
                 <CardDescription>Prezzo base</CardDescription>
               </CardHeader>
               <CardContent className="flex-1 flex flex-col items-center gap-6">
-                <Image
-                  src={bin.baseImage || "/placeholder.svg"}
-                  alt={`Cestino da ${bin.size} litri`}
-                  width={150}
-                  height={150}
-                  className="w-32 h-auto object-contain"
-                  unoptimized
-                />
+                <Image src={bin.baseImage || "/placeholder.svg"} alt={`Cestino da ${bin.size} litri`} width={150} height={150} className="w-32 h-auto object-contain" />
                 <div className="flex-1 text-center">
                   <p className="text-4xl font-bold text-gray-800">
                     {bin.basePrice.toLocaleString("it-IT", {

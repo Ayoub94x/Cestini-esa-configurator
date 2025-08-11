@@ -3,7 +3,7 @@
 import { usePriceCalculation } from "@/hooks/use-price-calculation"
 import { useConfigStore } from "@/hooks/use-config-store"
 import { AnimatePresence, motion } from "framer-motion"
-import Image from "next/image"
+import { Image } from "./image"
 
 const LOGO_URL = "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Logo_ESA-SH0r2i3VZYnYmHs6wymFizOyag967i.png"
 
@@ -41,14 +41,7 @@ export function Header() {
     <header className="sticky top-0 z-50 bg-white shadow-md">
       <div className="container mx-auto px-4 py-3 flex justify-between items-center">
         <div className="flex items-center gap-3">
-          <Image
-            src={LOGO_URL || "/placeholder.svg"}
-            alt="Logo ESA Waste Solutions"
-            width={160}
-            height={50}
-            className="h-10 w-auto"
-            unoptimized
-          />
+          <Image src={LOGO_URL || "/placeholder.svg"} alt="Logo ESA Waste Solutions" width={160} height={50} className="h-10 w-auto" />
           <span className="font-bold text-xl text-gray-700 hidden sm:inline">Configuratore Cestini</span>
         </div>
         <PriceDisplay />

@@ -7,13 +7,24 @@ Configurator online per cestini portarifiuti ESA. Permette di personalizzare dim
 ### Prerequisiti
 - Account Vercel
 - Repository Git (GitHub, GitLab, o Bitbucket)
+- Node.js 18+ installato localmente
 
-### Passi per il Deploy
+### Configurazione Pre-Deploy
+
+Il progetto è già configurato per Vercel con:
+- ✅ `vercel.json` configurato
+- ✅ `next.config.mjs` ottimizzato
+- ✅ Variabili d'ambiente configurate
+- ✅ Cache headers per performance
+- ✅ Compressione abilitata
+- ✅ TypeScript strict mode
+
+### Deploy Automatico
 
 1. **Push del codice su Git**
    ```bash
    git add .
-   git commit -m "Preparazione per deploy Vercel"
+   git commit -m "Deploy ready: Configurazione Vercel completa"
    git push origin main
    ```
 
@@ -23,14 +34,24 @@ Configurator online per cestini portarifiuti ESA. Permette di personalizzare dim
    - Importa il repository
    - Vercel rileverà automaticamente Next.js
 
-3. **Configurazione Automatica**
-   - Build Command: `npm run build` (già configurato)
-   - Output Directory: `.next` (già configurato)
-   - Install Command: `npm install` (già configurato)
+3. **Configurazione Variabili d'Ambiente**
+   Nel dashboard Vercel, aggiungi:
+   ```
+   NEXT_PUBLIC_SITE_URL=https://your-domain.vercel.app
+   ```
 
 4. **Deploy**
    - Clicca "Deploy"
    - Il sito sarà disponibile su `https://your-project.vercel.app`
+   - Deploy automatici ad ogni push su main
+
+### Ottimizzazioni Incluse
+- 🚀 Compressione gzip/brotli
+- 📦 Bundle optimization
+- 🖼️ Image optimization
+- 🔒 Security headers
+- ⚡ Static file caching
+- 🌍 Edge functions support
 
 ## 🛠️ Sviluppo Locale
 

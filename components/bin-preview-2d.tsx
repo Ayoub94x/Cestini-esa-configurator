@@ -1,6 +1,6 @@
 "use client"
 
-import Image from "next/image"
+import { Image } from "./image"
 import { useConfigStore } from "@/hooks/use-config-store"
 import { options as allOptions } from "@/lib/data"
 import { AnimatePresence, motion } from "framer-motion"
@@ -13,7 +13,7 @@ export function BinPreview2D() {
   if (!selectedBin) {
     return (
       <div className="flex items-center justify-center h-full w-full bg-gray-100 rounded-lg">
-        <p className="text-gray-500">Seleziona un cestino per vedere l'anteprima.</p>
+        <p className="text-gray-500">Seleziona un cestino per vedere l&apos;anteprima.</p>
       </div>
     )
   }
@@ -22,15 +22,7 @@ export function BinPreview2D() {
 
   return (
     <div id="bin-preview-for-pdf" className="relative w-[400px] h-[500px] flex items-center justify-center">
-      <Image
-        src={selectedBin.baseImage || "/placeholder.svg"}
-        alt={`Anteprima Cestino ${selectedBin.name} ${selectedBin.size}L`}
-        width={400}
-        height={500}
-        priority
-        className="object-contain w-auto h-full max-w-full max-h-full"
-        unoptimized
-      />
+      <Image src={selectedBin.baseImage || "/placeholder.svg"} alt={`Anteprima Cestino ${selectedBin.name} ${selectedBin.size}L`} width={400} height={500} className="object-contain w-auto h-full max-w-full max-h-full" />
 
       <AnimatePresence>
         {activeOptions.map((option, index) => {

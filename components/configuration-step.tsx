@@ -72,7 +72,7 @@ export function ConfigurationStep() {
         </Button>
         <div>
           <h1 className="text-3xl font-bold text-gray-800">3. Configura il tuo {selectedBin.name}</h1>
-          <p className="text-gray-600">Scegli gli optional. Le icone appariranno sull'anteprima.</p>
+          <p className="text-gray-600">Scegli gli optional. Le icone appariranno sull&apos;anteprima.</p>
         </div>
       </div>
 

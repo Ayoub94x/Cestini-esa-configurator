@@ -5,7 +5,7 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/componen
 import { Button } from "@/components/ui/button"
 import { useConfigStore } from "@/hooks/use-config-store"
 import { binModels } from "@/lib/data"
-import Image from "next/image"
+import { Image } from "./image"
 
 export function ModelSelector() {
   const { selectModel } = useConfigStore()
@@ -26,14 +26,7 @@ export function ModelSelector() {
                 <CardTitle className="text-2xl">{model.name}</CardTitle>
               </CardHeader>
               <CardContent className="flex-1 flex items-center justify-center p-6 bg-gray-50">
-                <Image
-                  src={model.image || "/placeholder.svg"}
-                  alt={`Cestino modello ${model.name}`}
-                  width={300}
-                  height={360}
-                  className="w-auto h-80 object-contain"
-                  unoptimized
-                />
+                <Image src={model.image || "/placeholder.svg"} alt={`Cestino modello ${model.name}`} width={300} height={360} className="w-auto h-80 object-contain" />
               </CardContent>
               <CardFooter className="p-4">
                 <Button className="w-full" size="lg" onClick={() => selectModel(model.id)}>
