@@ -260,16 +260,16 @@ export function QuoteDialog() {
       const margin = 50
       const contentWidth = pageWidth - (margin * 2)
       
-      // Modern color palette
+      // Modern color palette - properly typed for jsPDF
       const colors = {
-        primary: [25, 39, 52],      // Dark blue-gray
-        secondary: [71, 85, 105],   // Medium gray
-        accent: [59, 130, 246],     // Blue accent
-        success: [16, 185, 129],    // Green
-        light: [248, 250, 252],     // Very light gray
-        border: [226, 232, 240],    // Light border
-        text: [15, 23, 42],         // Dark text
-        textLight: [100, 116, 139]  // Light text
+        primary: [25, 39, 52] as [number, number, number],      // Dark blue-gray
+        secondary: [71, 85, 105] as [number, number, number],   // Medium gray
+        accent: [59, 130, 246] as [number, number, number],     // Blue accent
+        success: [16, 185, 129] as [number, number, number],    // Green
+        light: [248, 250, 252] as [number, number, number],     // Very light gray
+        border: [226, 232, 240] as [number, number, number],    // Light border
+        text: [15, 23, 42] as [number, number, number],         // Dark text
+        textLight: [100, 116, 139] as [number, number, number]  // Light text
       }
       
       // Load logo and bin image
@@ -515,14 +515,11 @@ export function QuoteDialog() {
           doc.setFont("helvetica", "bold")
           doc.text(option.label, textX, textY)
           
-          // Option description (if available)
-          if (option.description) {
-            doc.setTextColor(...colors.textLight)
-            doc.setFontSize(9)
-            doc.setFont("helvetica", "normal")
-            const descLines = doc.splitTextToSize(option.description, contentWidth - textX - 120)
-            doc.text(descLines[0] || "", textX, textY + 15)
-          }
+          // Option label styling
+          doc.setTextColor(...colors.text)
+          doc.setFontSize(10)
+          doc.setFont("helvetica", "bold")
+          doc.text(option.label, textX, textY)
           
           // Price display
           if (option.price) {
