@@ -5,6 +5,12 @@
   "installCommand": "npm install",
   "devCommand": "npm run dev",
   "regions": ["fra1"],
+  "rewrites": [
+    {
+      "source": "/((?!assets|images|models|.*\\..*).*)",
+      "destination": "/index.html"
+    }
+  ],
   "headers": [
     {
       "source": "/images/(.*)",

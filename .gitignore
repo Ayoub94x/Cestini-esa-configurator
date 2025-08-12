@@ -53,3 +53,6 @@ logs
 
 # Bundle analyzer
 .next/analyze/
+
+# YoYo AI version control directory
+.yoyo/
