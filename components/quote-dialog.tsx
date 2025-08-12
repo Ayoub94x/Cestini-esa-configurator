@@ -621,14 +621,14 @@ export function QuoteDialog() {
           Scarica Preventivo PDF
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[560px]">
+      <DialogContent className="sm:max-w-[560px] max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Conferma Download Preventivo</DialogTitle>
           <DialogDescription>
             Stai per generare un PDF con il riepilogo della configurazione attuale. Vuoi procedere?
           </DialogDescription>
         </DialogHeader>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-2">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 py-2">
           <div className="space-y-2">
             <Label htmlFor="clientName">Nome/Ragione sociale</Label>
             <Input id="clientName" value={clientName} onChange={(e) => setClientName(e.target.value)} placeholder="Es. Rossi S.r.l." />

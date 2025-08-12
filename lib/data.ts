@@ -1,19 +1,19 @@
 import type { LucideProps } from "lucide-react"
-import type { ForwardRefExoticComponent, RefAttributes } from "react"
+import type { ComponentType } from "react"
 
 import {
-  FlameIcon as FlameOff,
-  Lightbulb,
-  Cigarette,
-  ArrowDownToLine,
-  Bird,
-  Dog,
-  Signal,
-  BadgeInfo,
-  RadioTower,
-  Anchor,
-  Palette,
-} from "lucide-react"
+  ColorIcon,
+  FireResistantIcon,
+  LightIcon,
+  AshtrayIcon,
+  WasteLimiterIcon,
+  BirdNetIcon,
+  DogCompartmentIcon,
+  FillSensorIcon,
+  CustomPlateIcon,
+  UHFTagIcon,
+  PoleHookIcon,
+} from "@/components/ui/custom-icons"
 
 // URLs for the model images (invertite su richiesta)
 const BRANCA_IMAGE_URL =
@@ -37,7 +37,7 @@ export interface Option {
   label: string
   price: number
   percentage?: boolean
-  icon?: ForwardRefExoticComponent<Omit<LucideProps, "ref"> & RefAttributes<SVGSVGElement>>
+  icon?: ComponentType<LucideProps>
   availableFor?: BinSize[]
 }
 
@@ -147,21 +147,21 @@ export const bins: Bin[] = [
 ]
 
 export const options: Option[] = [
-  { code: "color", label: "Colorazione personalizzata", price: 5, percentage: true, icon: Palette },
-  { code: "v0", label: "Materiale plastico ignifugo (Classe V0)", price: 80, icon: FlameOff },
-  { code: "light", label: "Illuminazione LED", price: 65, icon: Lightbulb },
-  { code: "ashtray", label: "Posacenere", price: 45, icon: Cigarette },
-  { code: "waste_limiter", label: "Limitatore di conferimento rifiuti", price: 15, icon: ArrowDownToLine },
-  { code: "bird_net", label: "Rete anti-volatili", price: 65, icon: Bird },
-  { code: "dog_compartment", label: "Scomp. deiezioni canine", price: 48, icon: Dog },
-  { code: "fill_sensor", label: "Sensore riempimento (no SIM)", price: 185, icon: Signal },
-  { code: "custom_plate", label: "Placca personalizzazione", price: 15, icon: BadgeInfo },
-  { code: "uhf_tag", label: "Tag UHF", price: 3.5, icon: RadioTower },
+  { code: "color", label: "Colorazione personalizzata", price: 5, percentage: true, icon: ColorIcon },
+  { code: "v0", label: "Materiale plastico ignifugo (Classe V0)", price: 80, icon: FireResistantIcon },
+  { code: "light", label: "Illuminazione LED", price: 65, icon: LightIcon },
+  { code: "ashtray", label: "Posacenere", price: 45, icon: AshtrayIcon },
+  { code: "waste_limiter", label: "Limitatore di conferimento rifiuti", price: 15, icon: WasteLimiterIcon },
+  { code: "bird_net", label: "Rete anti-volatili", price: 65, icon: BirdNetIcon },
+  { code: "dog_compartment", label: "Scomp. deiezioni canine", price: 48, icon: DogCompartmentIcon },
+  { code: "fill_sensor", label: "Sensore riempimento (no SIM)", price: 185, icon: FillSensorIcon },
+  { code: "custom_plate", label: "Placca personalizzazione", price: 15, icon: CustomPlateIcon },
+  { code: "uhf_tag", label: "Tag UHF", price: 3.5, icon: UHFTagIcon },
   {
     code: "pole_hook",
     label: "Gancio adatt. palo",
     price: 40,
     availableFor: ["50/60"],
-    icon: Anchor,
+    icon: PoleHookIcon,
   },
 ]

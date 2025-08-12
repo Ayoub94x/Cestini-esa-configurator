@@ -23,5 +23,5 @@ export function Configurator() {
     }
   }
 
-  return <div className="container mx-auto px-4 py-8">{renderStep()}</div>
+  return <div className="container mx-auto px-3 sm:px-4 py-5 sm:py-8 safe-pb">{renderStep()}</div>
 }
